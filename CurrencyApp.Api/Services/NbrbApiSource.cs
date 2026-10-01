@@ -141,6 +141,38 @@ public class NbrbApiSource : ICurrencyRateSource
         }
     }
 
+    public async Task<AggregatesDto?> GetAggregatesAsync(
+        string code,
+        int year,
+        int month,
+        CancellationToken cancellationToken = default)
+    {
+        var ratesResponse = await GetRatesAsync(code, year, month, cancellationToken);
+
+        if (ratesResponse is null || ratesResponse.Rates.Count == 0)
+        {
+            _logger.LogWarning("Нет данных для агрегатов {Code} за {Year}-{Month:00}", code, year, month);
+            return null;
+        }
+
+        var rates = ratesResponse.Rates;
+
+        var averageRate = Math.Round(rates.Average(r => r.Rate), 4);
+        var maxRate = rates.MaxBy(r => r.Rate)!;
+        var minRate = rates.MinBy(r => r.Rate)!;
+
+        return new AggregatesDto
+        {
+            Code = ratesResponse.Code,
+            Name = ratesResponse.Name,
+            Year = year,
+            Month = month,
+            Average = averageRate,
+            Max = maxRate.Rate,
+            Min = minRate.Rate
+        };
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true

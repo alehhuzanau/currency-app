@@ -11,4 +11,10 @@ public interface ICurrencyRateSource
         int year,
         int month,
         CancellationToken cancellationToken = default);
+
+    Task<AggregatesDto?> GetAggregatesAsync(
+        string code,
+        int year,
+        int month,
+        CancellationToken cancellationToken = default);
 }
