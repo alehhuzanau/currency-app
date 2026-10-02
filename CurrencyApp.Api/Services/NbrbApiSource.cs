@@ -16,6 +16,11 @@ public class NbrbApiSource : ICurrencyRateSource
         _logger = logger;
     }
 
+        private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     public async Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -145,7 +150,7 @@ public class NbrbApiSource : ICurrencyRateSource
         string code,
         int year,
         int month,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) 
     {
         var ratesResponse = await GetRatesAsync(code, year, month, cancellationToken);
 
@@ -173,10 +178,128 @@ public class NbrbApiSource : ICurrencyRateSource
         };
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    public async Task<ConversionRateDto?> GetCurrentRateAsync(
+        string code,
+        CancellationToken cancellationToken = default)
     {
-        PropertyNameCaseInsensitive = true
-    };
+        if (string.Equals(code, "BYN", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ConversionRateDto
+            {
+                Code = "BYN",
+                Name = "Белорусский рубль",
+                Rate = 1m,
+                Date = DateTime.UtcNow.Date,
+                Scale = 1
+            };
+        }
+
+        var url = $"https://api.nbrb.by/exrates/rates/{code}?parammode=2";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("НБРБ вернул статус {Status} для {Code}", response.StatusCode, code);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var raw = JsonSerializer.Deserialize<NbrbCurrentRate>(json, JsonOptions);
+
+            if (raw is null)
+            {
+                _logger.LogWarning("Пустой ответ для {Code}", code);
+                return null;
+            }
+
+            var scale = raw.CurScale > 0 ? raw.CurScale : 1;
+
+            return new ConversionRateDto
+            {
+                Code = raw.CurAbbreviation,
+                Name = raw.CurName,
+                Rate = Math.Round(raw.CurOfficialRate / scale, 4),
+                Date = raw.Date.Date,
+                Scale = scale
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Ошибка получения курса {Code}", code);
+            return null;
+        }
+    }
+
+    public async Task<ConversionResponseDto?> ConvertAsync(
+        string from,
+        string to,
+        decimal amount,
+        CancellationToken cancellationToken = default)
+    {
+        if (amount <= 0)
+        {
+            _logger.LogWarning("Некорректная сумма для конвертации: {Amount}", amount);
+            return null;
+        }
+
+        var fromRate = await GetCurrentRateAsync(from, cancellationToken);
+        var toRate = await GetCurrentRateAsync(to, cancellationToken);
+
+        if (fromRate is null || toRate is null)
+        {
+            _logger.LogWarning("Не удалось получить курс для {From} → {To}", from, to);
+            return null;
+        }
+
+        var result = amount * fromRate.Rate / toRate.Rate;
+        result = Math.Round(result, 4);
+
+        var rates = new List<ConversionRateDto>();
+
+        if (!string.Equals(fromRate.Code, "BYN", StringComparison.OrdinalIgnoreCase))
+        {
+            rates.Add(fromRate);
+        }
+
+        if (!string.Equals(toRate.Code, "BYN", StringComparison.OrdinalIgnoreCase))
+        {
+            rates.Add(toRate);
+        }
+
+        var message = BuildMessage(fromRate, toRate, rates);
+
+        return new ConversionResponseDto
+        {
+            From = fromRate.Code,
+            To = toRate.Code,
+            Amount = amount,
+            Result = result,
+            ConversionRates = rates,
+            CalculatedAt = DateTime.UtcNow,
+            Message = message
+        };
+    }
+
+    private static string BuildMessage(
+        ConversionRateDto fromRate,
+        ConversionRateDto toRate,
+        IReadOnlyList<ConversionRateDto> rates)
+    {
+        if (rates.Count == 0)
+        {
+            return "Конвертация внутри BYN — курс не требуется.";
+        }
+
+        var parts = rates.Select(r =>
+            $"1 {r.Code} = {r.Rate} BYN (на {r.Date:dd.MM.yyyy})");
+
+        return "Расчёт выполнен по курсу НБРБ: " + string.Join("; ", parts) + ".";
+    }
+
+
 
     private class NbrbCurrency
     {
@@ -203,5 +326,23 @@ public class NbrbApiSource : ICurrencyRateSource
 
         [JsonPropertyName("Cur_OfficialRate")]
         public decimal OfficialRate { get; set; }
+    }
+
+    private class NbrbCurrentRate
+    {
+        [JsonPropertyName("Cur_Abbreviation")]
+        public string CurAbbreviation { get; set; } = string.Empty;
+
+        [JsonPropertyName("Cur_Name")]
+        public string CurName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Cur_Scale")]
+        public int CurScale { get; set; } = 1;
+
+        [JsonPropertyName("Cur_OfficialRate")]
+        public decimal CurOfficialRate { get; set; }
+
+        [JsonPropertyName("Date")]
+        public DateTime Date { get; set; }
     }
 }

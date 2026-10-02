@@ -17,4 +17,14 @@ public interface ICurrencyRateSource
         int year,
         int month,
         CancellationToken cancellationToken = default);
+
+    Task<ConversionRateDto?> GetCurrentRateAsync(
+        string code,
+        CancellationToken cancellationToken = default);
+
+    Task<ConversionResponseDto?> ConvertAsync(
+        string from,
+        string to,
+        decimal amount,
+        CancellationToken cancellationToken = default);
 }
