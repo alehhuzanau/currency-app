@@ -1,5 +1,6 @@
 using CurrencyApp.Api.Models;
 using CurrencyApp.Api.Services;
+using CurrencyApp.Api.Constants;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,12 +38,12 @@ public class RatesController : ControllerBase
             return BadRequest("Параметр 'code' обязателен.");
         }
 
-        if (year < 2000 || year > 2100)
+        if (!RequestValidator.IsValidYear(year))
         {
             return BadRequest("Параметр 'year' должен быть в диапазоне 2000–2100.");
         }
 
-        if (month < 1 || month > 12)
+        if (!RequestValidator.IsValidMonth(month))
         {
             return BadRequest("Параметр 'month' должен быть в диапазоне 1–12.");
         }

@@ -7,6 +7,22 @@ namespace CurrencyApp.Api.Services;
 
 public class NbrbApiSource : ICurrencyRateSource
 {
+    private const string BynCode = "BYN";
+    private const string BynName = "Белорусский рубль";
+    private const decimal BynRate = 1m;
+
+    private const int RateDecimals = 4;
+
+    private const string NbrbBaseUrl = "https://api.nbrb.by";
+    private const string CurrenciesPath = "/exrates/currencies";
+    private const string DynamicsPathPattern = "/exrates/rates/dynamics/{0}?startdate={1:yyyy-MM-dd}&enddate={2:yyyy-MM-dd}";
+    private const string CurrentRatePathPattern = "/exrates/rates/{0}?parammode=2";
+
+    private static readonly JsonSerializerOptions JsonOptions = new() 
+    { 
+        PropertyNameCaseInsensitive = true 
+    };
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<NbrbApiSource> _logger;
 
@@ -16,16 +32,12 @@ public class NbrbApiSource : ICurrencyRateSource
         _logger = logger;
     }
 
-        private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     public async Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var response = await _httpClient.GetAsync("https://api.nbrb.by/exrates/currencies", cancellationToken);
+            var url = NbrbBaseUrl + CurrenciesPath;
+            var response = await _httpClient.GetAsync(url, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -76,8 +88,7 @@ public class NbrbApiSource : ICurrencyRateSource
         var lastDay = firstDay.AddMonths(1).AddDays(-1);
         var requestStart = firstDay.AddDays(-1);
 
-        var url = $"https://api.nbrb.by/exrates/rates/dynamics/{currency.Id}" +
-                  $"?startdate={requestStart:yyyy-MM-dd}&enddate={lastDay:yyyy-MM-dd}";
+        var url = NbrbBaseUrl + string.Format(DynamicsPathPattern, currency.Id, requestStart, lastDay);
 
         try
         {
@@ -113,7 +124,7 @@ public class NbrbApiSource : ICurrencyRateSource
                 {
                     var previous = raw[i - 1];
                     var previousRatePerUnit = previous.OfficialRate / scale;
-                    change = Math.Round(ratePerUnit - previousRatePerUnit, 4);
+                    change = Math.Round(ratePerUnit - previousRatePerUnit, RateDecimals);
                 }
 
                 if (current.Date.Year == year && current.Date.Month == month)
@@ -121,7 +132,7 @@ public class NbrbApiSource : ICurrencyRateSource
                     rates.Add(new RateDto
                     {
                         Date = current.Date,
-                        Rate = Math.Round(ratePerUnit, 4),
+                        Rate = Math.Round(ratePerUnit, RateDecimals),
                         Change = change,
                         Scale = scale,
                         Code = currency.Code,
@@ -162,7 +173,7 @@ public class NbrbApiSource : ICurrencyRateSource
 
         var rates = ratesResponse.Rates;
 
-        var averageRate = Math.Round(rates.Average(r => r.Rate), 4);
+        var averageRate = Math.Round(rates.Average(r => r.Rate), RateDecimals);
         var maxRate = rates.MaxBy(r => r.Rate)!;
         var minRate = rates.MinBy(r => r.Rate)!;
 
@@ -182,19 +193,19 @@ public class NbrbApiSource : ICurrencyRateSource
         string code,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(code, "BYN", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(code, BynCode, StringComparison.OrdinalIgnoreCase))
         {
             return new ConversionRateDto
             {
-                Code = "BYN",
-                Name = "Белорусский рубль",
-                Rate = 1m,
+                Code = BynCode,
+                Name = BynName,
+                Rate = BynRate,
                 Date = DateTime.UtcNow.Date,
                 Scale = 1
             };
         }
 
-        var url = $"https://api.nbrb.by/exrates/rates/{code}?parammode=2";
+        var url = NbrbBaseUrl + string.Format(CurrentRatePathPattern, code);
 
         try
         {
@@ -221,7 +232,7 @@ public class NbrbApiSource : ICurrencyRateSource
             {
                 Code = raw.CurAbbreviation,
                 Name = raw.CurName,
-                Rate = Math.Round(raw.CurOfficialRate / scale, 4),
+                Rate = Math.Round(raw.CurOfficialRate / scale, RateDecimals),
                 Date = raw.Date.Date,
                 Scale = scale
             };
@@ -255,16 +266,16 @@ public class NbrbApiSource : ICurrencyRateSource
         }
 
         var result = amount * fromRate.Rate / toRate.Rate;
-        result = Math.Round(result, 4);
+        result = Math.Round(result, RateDecimals);
 
         var rates = new List<ConversionRateDto>();
 
-        if (!string.Equals(fromRate.Code, "BYN", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(fromRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
         {
             rates.Add(fromRate);
         }
 
-        if (!string.Equals(toRate.Code, "BYN", StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(toRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
         {
             rates.Add(toRate);
         }
@@ -298,8 +309,6 @@ public class NbrbApiSource : ICurrencyRateSource
 
         return "Расчёт выполнен по курсу НБРБ: " + string.Join("; ", parts) + ".";
     }
-
-
 
     private class NbrbCurrency
     {
