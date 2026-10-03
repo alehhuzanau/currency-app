@@ -3,6 +3,8 @@ using CurrencyApp.Api.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using Microsoft.Extensions.Caching.Memory;
+
 namespace CurrencyApp.Api.Services;
 
 public class NbrbApiSource : ICurrencyRateSource
@@ -23,13 +25,18 @@ public class NbrbApiSource : ICurrencyRateSource
         PropertyNameCaseInsensitive = true 
     };
 
+    private const string RateCacheKeyPattern = "nbrb:rate:{0}";
+    private static readonly TimeSpan RateCacheDuration = TimeSpan.FromHours(1);
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<NbrbApiSource> _logger;
+    private readonly IMemoryCache _cache;
 
-    public NbrbApiSource(HttpClient httpClient, ILogger<NbrbApiSource> logger)
+    public NbrbApiSource(HttpClient httpClient, ILogger<NbrbApiSource> logger, IMemoryCache cache)
     {
         _httpClient = httpClient;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
@@ -205,6 +212,15 @@ public class NbrbApiSource : ICurrencyRateSource
             };
         }
 
+        var uppercaseCode = code.ToUpperInvariant();
+        var cacheKey = string.Format(RateCacheKeyPattern, uppercaseCode);
+
+        if (_cache.TryGetValue(cacheKey, out ConversionRateDto? cachedRate) && cachedRate is not null)
+        {
+            _logger.LogDebug("Курс {Code} взят из кэша", uppercaseCode);
+            return cachedRate;
+        }
+
         var url = NbrbBaseUrl + string.Format(CurrentRatePathPattern, code);
 
         try
@@ -228,7 +244,7 @@ public class NbrbApiSource : ICurrencyRateSource
 
             var scale = raw.CurScale > 0 ? raw.CurScale : 1;
 
-            return new ConversionRateDto
+            var rate = new ConversionRateDto
             {
                 Code = raw.CurAbbreviation,
                 Name = raw.CurName,
@@ -236,6 +252,11 @@ public class NbrbApiSource : ICurrencyRateSource
                 Date = raw.Date.Date,
                 Scale = scale
             };
+
+            _cache.Set(cacheKey, rate, RateCacheDuration);
+            _logger.LogDebug("Курс {Code} получен из НБРБ и закэширован на {Duration}", uppercaseCode, RateCacheDuration);
+
+            return rate;
         }
         catch (HttpRequestException ex)
         {
