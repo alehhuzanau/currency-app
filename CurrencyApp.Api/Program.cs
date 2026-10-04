@@ -11,7 +11,7 @@ var dataSourceType = builder.Configuration["DataSource:Type"] ?? "Api";
 
 if (string.Equals(dataSourceType, "File", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<ICurrencyRateSource, FileSource>();
+    builder.Services.AddSingleton<ICurrencyRateSource, FileCurrencyRateSource>();
 }
 else
 {

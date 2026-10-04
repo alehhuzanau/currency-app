@@ -7,26 +7,20 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace CurrencyApp.Api.Services;
 
-public class NbrbApiSource : ICurrencyRateSource
+public class NbrbApiSource : CurrencyRateSourceBase
 {
-    private const string BynCode = "BYN";
-    private const string BynName = "Белорусский рубль";
-    private const decimal BynRate = 1m;
-
-    private const int RateDecimals = 4;
-
     private const string NbrbBaseUrl = "https://api.nbrb.by";
     private const string CurrenciesPath = "/exrates/currencies";
     private const string DynamicsPathPattern = "/exrates/rates/dynamics/{0}?startdate={1:yyyy-MM-dd}&enddate={2:yyyy-MM-dd}";
     private const string CurrentRatePathPattern = "/exrates/rates/{0}?parammode=2";
 
+    private const string RateCacheKeyPattern = "nbrb:rate:{0}";
+    private static readonly TimeSpan RateCacheDuration = TimeSpan.FromHours(1);
+
     private static readonly JsonSerializerOptions JsonOptions = new() 
     { 
         PropertyNameCaseInsensitive = true 
     };
-
-    private const string RateCacheKeyPattern = "nbrb:rate:{0}";
-    private static readonly TimeSpan RateCacheDuration = TimeSpan.FromHours(1);
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<NbrbApiSource> _logger;
@@ -39,7 +33,7 @@ public class NbrbApiSource : ICurrencyRateSource
         _cache = cache;
     }
 
-    public async Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
+    public override async Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -75,7 +69,7 @@ public class NbrbApiSource : ICurrencyRateSource
         }
     }
 
-    public async Task<RatesResponseDto?> GetRatesAsync(
+    public override async Task<RatesResponseDto?> GetRatesAsync(
         string code,
         int year,
         int month,
@@ -164,52 +158,13 @@ public class NbrbApiSource : ICurrencyRateSource
         }
     }
 
-    public async Task<AggregatesDto?> GetAggregatesAsync(
-        string code,
-        int year,
-        int month,
-        CancellationToken cancellationToken = default) 
-    {
-        var ratesResponse = await GetRatesAsync(code, year, month, cancellationToken);
-
-        if (ratesResponse is null || ratesResponse.Rates.Count == 0)
-        {
-            _logger.LogWarning("Нет данных для агрегатов {Code} за {Year}-{Month:00}", code, year, month);
-            return null;
-        }
-
-        var rates = ratesResponse.Rates;
-
-        var averageRate = Math.Round(rates.Average(r => r.Rate), RateDecimals);
-        var maxRate = rates.MaxBy(r => r.Rate)!;
-        var minRate = rates.MinBy(r => r.Rate)!;
-
-        return new AggregatesDto
-        {
-            Code = ratesResponse.Code,
-            Name = ratesResponse.Name,
-            Year = year,
-            Month = month,
-            Average = averageRate,
-            Max = maxRate.Rate,
-            Min = minRate.Rate
-        };
-    }
-
-    public async Task<ConversionRateDto?> GetCurrentRateAsync(
+    public override async Task<ConversionRateDto?> GetCurrentRateAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(code, BynCode, StringComparison.OrdinalIgnoreCase))
+        if (IsByn(code))
         {
-            return new ConversionRateDto
-            {
-                Code = BynCode,
-                Name = BynName,
-                Rate = BynRate,
-                Date = DateTime.UtcNow.Date,
-                Scale = 1
-            };
+            return CreateBynRate();
         }
 
         var uppercaseCode = code.ToUpperInvariant();
@@ -263,72 +218,6 @@ public class NbrbApiSource : ICurrencyRateSource
             _logger.LogError(ex, "Ошибка получения курса {Code}", code);
             return null;
         }
-    }
-
-    public async Task<ConversionResponseDto?> ConvertAsync(
-        string from,
-        string to,
-        decimal amount,
-        CancellationToken cancellationToken = default)
-    {
-        if (amount <= 0)
-        {
-            _logger.LogWarning("Некорректная сумма для конвертации: {Amount}", amount);
-            return null;
-        }
-
-        var fromRate = await GetCurrentRateAsync(from, cancellationToken);
-        var toRate = await GetCurrentRateAsync(to, cancellationToken);
-
-        if (fromRate is null || toRate is null)
-        {
-            _logger.LogWarning("Не удалось получить курс для {From} → {To}", from, to);
-            return null;
-        }
-
-        var result = amount * fromRate.Rate / toRate.Rate;
-        result = Math.Round(result, RateDecimals);
-
-        var rates = new List<ConversionRateDto>();
-
-        if (!string.Equals(fromRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
-        {
-            rates.Add(fromRate);
-        }
-
-        if (!string.Equals(toRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
-        {
-            rates.Add(toRate);
-        }
-
-        var message = BuildMessage(fromRate, toRate, rates);
-
-        return new ConversionResponseDto
-        {
-            From = fromRate.Code,
-            To = toRate.Code,
-            Amount = amount,
-            Result = result,
-            ConversionRates = rates,
-            CalculatedAt = DateTime.UtcNow,
-            Message = message
-        };
-    }
-
-    private static string BuildMessage(
-        ConversionRateDto fromRate,
-        ConversionRateDto toRate,
-        IReadOnlyList<ConversionRateDto> rates)
-    {
-        if (rates.Count == 0)
-        {
-            return "Конвертация внутри BYN — курс не требуется.";
-        }
-
-        var parts = rates.Select(r =>
-            $"1 {r.Code} = {r.Rate} BYN (на {r.Date:dd.MM.yyyy})");
-
-        return "Расчёт выполнен по курсу НБРБ: " + string.Join("; ", parts) + ".";
     }
 
     private class NbrbCurrency

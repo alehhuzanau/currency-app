@@ -5,23 +5,18 @@ using CurrencyApp.Api.Models;
 
 namespace CurrencyApp.Api.Services;
 
-public class FileSource : ICurrencyRateSource
+public class FileCurrencyRateSource : CurrencyRateSourceBase
 {
-    private const string BynCode = "BYN";
-    private const string BynName = "Белорусский рубль";
-    private const decimal BynRate = 1m;
-    private const int RateDecimals = 4;
-
-    private readonly ILogger<FileSource> _logger;
+    private readonly ILogger<FileCurrencyRateSource> _logger;
     private readonly string _currenciesPath;
     private readonly string _ratesPath;
 
     private IReadOnlyList<CurrencyDto>? _currenciesCache;
     private IReadOnlyList<CsvRate>? _ratesCache;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
-    public FileSource(
-        ILogger<FileSource> logger,
+    public FileCurrencyRateSource(
+        ILogger<FileCurrencyRateSource> logger,
         IWebHostEnvironment env)
     {
         _logger = logger;
@@ -30,12 +25,12 @@ public class FileSource : ICurrencyRateSource
         _ratesPath = Path.Combine(dataFolder, "rates.csv");
     }
 
-    public Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
+    public override Task<IReadOnlyList<CurrencyDto>> GetCurrenciesAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(LoadCurrencies());
     }
 
-    public Task<RatesResponseDto?> GetRatesAsync(
+    public override Task<RatesResponseDto?> GetRatesAsync(
         string code,
         int year,
         int month,
@@ -111,50 +106,13 @@ public class FileSource : ICurrencyRateSource
         });
     }
 
-    public async Task<AggregatesDto?> GetAggregatesAsync(
-        string code,
-        int year,
-        int month,
-        CancellationToken cancellationToken = default)
-    {
-        var ratesResponse = await GetRatesAsync(code, year, month, cancellationToken);
-
-        if (ratesResponse is null || ratesResponse.Rates.Count == 0)
-        {
-            return null;
-        }
-
-        var rates = ratesResponse.Rates;
-        var averageRate = Math.Round(rates.Average(r => r.Rate), RateDecimals);
-        var maxRate = rates.MaxBy(r => r.Rate)!;
-        var minRate = rates.MinBy(r => r.Rate)!;
-
-        return new AggregatesDto
-        {
-            Code = ratesResponse.Code,
-            Name = ratesResponse.Name,
-            Year = year,
-            Month = month,
-            Average = averageRate,
-            Max = maxRate.Rate,
-            Min = minRate.Rate
-        };
-    }
-
-    public Task<ConversionRateDto?> GetCurrentRateAsync(
+    public override Task<ConversionRateDto?> GetCurrentRateAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(code, BynCode, StringComparison.OrdinalIgnoreCase))
+        if (IsByn(code))
         {
-            return Task.FromResult<ConversionRateDto?>(new ConversionRateDto
-            {
-                Code = BynCode,
-                Name = BynName,
-                Rate = BynRate,
-                Date = DateTime.UtcNow.Date,
-                Scale = 1
-            });
+            return Task.FromResult<ConversionRateDto?>(CreateBynRate());
         }
 
         var currency = LoadCurrencies().FirstOrDefault(c =>
@@ -185,51 +143,6 @@ public class FileSource : ICurrencyRateSource
             Date = latest.Date,
             Scale = scale
         });
-    }
-
-    public async Task<ConversionResponseDto?> ConvertAsync(
-        string from,
-        string to,
-        decimal amount,
-        CancellationToken cancellationToken = default)
-    {
-        if (amount <= 0)
-        {
-            return null;
-        }
-
-        var fromRate = await GetCurrentRateAsync(from, cancellationToken);
-        var toRate = await GetCurrentRateAsync(to, cancellationToken);
-
-        if (fromRate is null || toRate is null)
-        {
-            return null;
-        }
-
-        var result = Math.Round(amount * fromRate.Rate / toRate.Rate, RateDecimals);
-
-        var rates = new List<ConversionRateDto>();
-        if (!string.Equals(fromRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
-        {
-            rates.Add(fromRate);
-        }
-        if (!string.Equals(toRate.Code, BynCode, StringComparison.OrdinalIgnoreCase))
-        {
-            rates.Add(toRate);
-        }
-
-        var message = BuildMessage(rates);
-
-        return new ConversionResponseDto
-        {
-            From = fromRate.Code,
-            To = toRate.Code,
-            Amount = amount,
-            Result = result,
-            ConversionRates = rates,
-            CalculatedAt = DateTime.UtcNow,
-            Message = message
-        };
     }
 
     private IReadOnlyList<CurrencyDto> LoadCurrencies()
@@ -302,19 +215,6 @@ public class FileSource : ICurrencyRateSource
             _logger.LogInformation("Загружено {Count} курсов из CSV", _ratesCache.Count);
             return _ratesCache;
         }
-    }
-
-    private static string BuildMessage(IReadOnlyList<ConversionRateDto> rates)
-    {
-        if (rates.Count == 0)
-        {
-            return "Конвертация внутри BYN — курс не требуется.";
-        }
-
-        var parts = rates.Select(r =>
-            $"1 {r.Code} = {r.Rate.ToString(CultureInfo.InvariantCulture)} BYN (на {r.Date:dd.MM.yyyy})");
-
-        return "Расчёт выполнен по данным CSV: " + string.Join("; ", parts) + ".";
     }
 
     private class CsvCurrency
