@@ -1,6 +1,29 @@
-@CurrencyApp.Api_HostAddress = http://localhost:5120
+@host = http://localhost:5120
 
-GET {{CurrencyApp.Api_HostAddress}}/weatherforecast/
+### Список валют
+GET {{host}}/api/currencies
 Accept: application/json
 
-###
+### Курсы валюты за месяц c изменением относительно предыдущего дня (USD, сентрябрь 2026)
+GET {{host}}/api/rates?code=USD&year=2026&month=9
+Accept: application/json
+
+### Средние значения за месяц (USD, сентрябрь 2026)
+GET {{host}}/api/rates/aggregates?code=USD&year=2026&month=9
+Accept: application/json
+
+### Конвертация BYN → USD
+GET {{host}}/api/convert?from=BYN&to=USD&amount=1000
+Accept: application/json
+
+### Конвертация USD → BYN
+GET {{host}}/api/convert?from=USD&to=BYN&amount=100
+Accept: application/json
+
+### Конвертация USD → EUR
+GET {{host}}/api/convert?from=USD&to=EUR&amount=100
+Accept: application/json
+
+### Невалидный год — 400 Bad Request
+GET {{host}}/api/rates?code=USD&year=1990&month=9
+Accept: application/json
