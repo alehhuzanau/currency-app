@@ -120,8 +120,8 @@ public abstract class CurrencyRateSourceBase : ICurrencyRateSource
         }
 
         var parts = rates.Select(r =>
-            $"1 {r.Code} = {r.Rate.ToString(CultureInfo.InvariantCulture)} BYN (на {r.Date:dd.MM.yyyy})");
+            $"1 {r.Code} = {r.Rate.ToString(CultureInfo.InvariantCulture)} BYN");
 
-        return "Расчёт выполнен по курсу НБРБ: " + string.Join("; ", parts) + ".";
+        return $"Расчёт выполнен по курсу НБРБ на {rates[0].Date:dd.MM.yyyy}: " + string.Join("; ", parts) + ".";
     }
 }
