@@ -1,39 +1,59 @@
-import { useEffect, useState } from 'react';
-import { getCurrencies } from './api/currencyApi';
-import type { Currency } from './types/currency';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Container, Typography, Alert } from '@mui/material';
+import { getCurrencies, getRates } from './api/currencyApi';
+import RatesFilters from './components/RatesFilters';
+import RatesTable from './components/RatesTable';
 
 export default function App() {
-    const [currencies, setCurrencies] = useState<Currency[]>([]);
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
+    const now = new Date();
+    const [selectedCode, setSelectedCode] = useState('');
+    const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+
+    const currenciesQuery = useQuery({
+        queryKey: ['currencies'],
+        queryFn: getCurrencies,
+    });
 
     useEffect(() => {
-        getCurrencies()
-            .then(data => {
-                setCurrencies(data);
-                setError(null);
-            })
-            .catch(err => {
-                setError(err.message);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    }, []);
+        if (currenciesQuery.data?.length && !selectedCode) {
+            const sorted = [...currenciesQuery.data].sort((a, b) =>
+                a.name.localeCompare(b.name, 'ru')
+            );
+            setSelectedCode(sorted[0].code);
+        }
+    }, [currenciesQuery.data, selectedCode]);
 
-    if (loading) return <p style={{ padding: 20 }}>Загрузка...</p>;
-    if (error) return <p style={{ padding: 20, color: 'red' }}>Ошибка: {error}</p>;
+    const ratesQuery = useQuery({
+        queryKey: ['rates', selectedCode, selectedYear, selectedMonth],
+        queryFn: () => getRates(selectedCode, selectedYear, selectedMonth),
+        enabled: !!selectedCode,
+    });
+
+    if (currenciesQuery.isError) {
+        return <Alert severity="error">Не удалось загрузить валюты</Alert>;
+    }
 
     return (
-        <div style={{ padding: 20 }}>
-            <h1>Валюты ({currencies.length})</h1>
-            <ul>
-                {currencies.map(c => (
-                    <li key={c.code}>
-                        <strong>{c.code}</strong> — {c.name} (scale: {c.scale})
-                    </li>
-                ))}
-            </ul>
-        </div>
+        <Container maxWidth="md" sx={{ mt: 3 }}>
+            <Typography variant="h5" gutterBottom>Курсы валют НБРБ</Typography>
+
+            <RatesFilters
+                currencies={currenciesQuery.data ?? []}
+                selectedCode={selectedCode}
+                selectedYear={selectedYear}
+                selectedMonth={selectedMonth}
+                onCodeChange={setSelectedCode}
+                onYearChange={setSelectedYear}
+                onMonthChange={setSelectedMonth}
+            />
+
+            <RatesTable
+                data={ratesQuery.data}
+                isLoading={ratesQuery.isLoading}
+                isError={ratesQuery.isError}
+            />
+        </Container>
     );
 }
