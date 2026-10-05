@@ -102,7 +102,7 @@ export default function ConverterCard({ currencies }: Props) {
                         size="small"
                         value={amount}
                         onChange={e => handleAmountChange(e.target.value)}
-                        slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+                        slotProps={{ htmlInput: { min: 0, step: 1 } }}
                         error={!!amountError}
                         helperText={amountError}
                         sx={{ width: 180 }}
