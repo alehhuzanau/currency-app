@@ -5,6 +5,7 @@ import { getCurrencies, getRates, getAggregates } from './api/currencyApi';
 import RatesFilters from './components/RatesFilters';
 import RatesTable from './components/RatesTable';
 import AggregatesCard from './components/AggregatesCard';
+import ConverterCard from './components/ConverterCard';
 
 export default function App() {
     const now = new Date();
@@ -67,6 +68,8 @@ export default function App() {
                 isLoading={aggregatesQuery.isLoading}
                 isError={aggregatesQuery.isError}
             />
+
+            <ConverterCard currencies={currenciesQuery.data ?? []} />
         </Container>
     );
 }
