@@ -7,7 +7,7 @@ const MONTHS = [
 ];
 
 const MIN_YEAR = 2020;
-const MAX_YEAR = 2026;
+const MAX_YEAR = new Date().getFullYear();;
 
 interface Props {
     currencies: Currency[];
