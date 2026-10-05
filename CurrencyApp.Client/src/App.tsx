@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Container, Typography, Alert } from '@mui/material';
-import { getCurrencies, getRates } from './api/currencyApi';
+import { getCurrencies, getRates, getAggregates } from './api/currencyApi';
 import RatesFilters from './components/RatesFilters';
 import RatesTable from './components/RatesTable';
+import AggregatesCard from './components/AggregatesCard';
 
 export default function App() {
     const now = new Date();
@@ -31,6 +32,12 @@ export default function App() {
         enabled: !!selectedCode,
     });
 
+    const aggregatesQuery = useQuery({
+        queryKey: ['aggregates', selectedCode, selectedYear, selectedMonth],
+        queryFn: () => getAggregates(selectedCode, selectedYear, selectedMonth),
+        enabled: !!selectedCode,
+    });
+
     if (currenciesQuery.isError) {
         return <Alert severity="error">Не удалось загрузить валюты</Alert>;
     }
@@ -53,6 +60,12 @@ export default function App() {
                 data={ratesQuery.data}
                 isLoading={ratesQuery.isLoading}
                 isError={ratesQuery.isError}
+            />
+
+            <AggregatesCard
+                data={aggregatesQuery.data}
+                isLoading={aggregatesQuery.isLoading}
+                isError={aggregatesQuery.isError}
             />
         </Container>
     );
