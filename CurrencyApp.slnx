@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CurrencyApp.Api/CurrencyApp.Api.csproj" />
+  <Project Path="CurrencyApp.Client/CurrencyApp.Client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+</Solution>
