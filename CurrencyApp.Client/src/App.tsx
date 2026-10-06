@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Container, Typography, Alert } from '@mui/material';
 import { getCurrencies, getRates, getAggregates } from './api/currencyApi';
@@ -9,7 +9,7 @@ import ConverterCard from './components/ConverterCard';
 
 export default function App() {
     const now = new Date();
-    const [selectedCode, setSelectedCode] = useState('');
+    const [userSelectedCode, setUserSelectedCode] = useState<string | null>(null);
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
 
@@ -18,14 +18,10 @@ export default function App() {
         queryFn: getCurrencies,
     });
 
-    useEffect(() => {
-        if (currenciesQuery.data?.length && !selectedCode) {
-            const sorted = [...currenciesQuery.data].sort((a, b) =>
-                a.name.localeCompare(b.name, 'ru')
-            );
-            setSelectedCode(sorted[0].code);
-        }
-    }, [currenciesQuery.data, selectedCode]);
+    const selectedCode = userSelectedCode
+        ?? currenciesQuery.data?.find(c => c.code === 'USD')?.code
+        ?? currenciesQuery.data?.[0]?.code
+        ?? '';
 
     const ratesQuery = useQuery({
         queryKey: ['rates', selectedCode, selectedYear, selectedMonth],
@@ -52,7 +48,7 @@ export default function App() {
                 selectedCode={selectedCode}
                 selectedYear={selectedYear}
                 selectedMonth={selectedMonth}
-                onCodeChange={setSelectedCode}
+                onCodeChange={setUserSelectedCode}
                 onYearChange={setSelectedYear}
                 onMonthChange={setSelectedMonth}
             />
