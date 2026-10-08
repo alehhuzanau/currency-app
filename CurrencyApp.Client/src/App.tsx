@@ -78,7 +78,7 @@ export default function App() {
 
             {currenciesQuery.data && (
                 <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 8 }}>
+                    <Grid size={{ xs: 12, md: 8 }} sx={{ pb: 4 }}>
                         <RatesSection
                             code={selectedCode}
                             year={selectedYear}
