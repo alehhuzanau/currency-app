@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: ./CurrencyApp.Api
+      dockerfile: Dockerfile
+    container_name: currency-api
+    ports:
+      - "5120:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DataSource__Type=Api
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./CurrencyApp.Client
+      dockerfile: Dockerfile
+    container_name: currency-client
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    restart: unless-stopped
