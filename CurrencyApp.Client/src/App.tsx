@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Container, Typography, Alert } from '@mui/material';
+import {
+    Container,
+    Typography,
+    Alert,
+    Box,
+    CircularProgress,
+    Button,
+} from '@mui/material';
 import { getCurrencies, getRates, getAggregates } from './api/currencyApi';
 import RatesFilters from './components/RatesFilters';
 import RatesTable from './components/RatesTable';
@@ -35,37 +42,116 @@ export default function App() {
         enabled: !!selectedCode,
     });
 
-    if (currenciesQuery.isError) {
-        return <Alert severity="error">Не удалось загрузить валюты</Alert>;
+    const criticalError = currenciesQuery.isError && !currenciesQuery.data;
+
+    if (criticalError) {
+        return (
+            <Container maxWidth="md" sx={{ mt: 3 }}>
+                <Typography variant="h5" gutterBottom>
+                    Курсы валют НБРБ
+                </Typography>
+                <Alert
+                    severity="error"
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => currenciesQuery.refetch()}
+                        >
+                            Повторить
+                        </Button>
+                    }
+                >
+                    Не удалось загрузить список валют. Проверьте подключение к интернету.
+                </Alert>
+            </Container>
+        );
     }
+
+    const isInitialLoading =
+        currenciesQuery.isLoading ||
+        (ratesQuery.isLoading && !ratesQuery.data) ||
+        (aggregatesQuery.isLoading && !aggregatesQuery.data);
+
+    const nothingLoadedYet = !ratesQuery.data && !aggregatesQuery.data;
 
     return (
         <Container maxWidth="md" sx={{ mt: 3 }}>
-            <Typography variant="h5" gutterBottom>Курсы валют НБРБ</Typography>
+            <Typography variant="h5" gutterBottom>
+                Курсы валют НБРБ
+            </Typography>
 
-            <RatesFilters
-                currencies={currenciesQuery.data ?? []}
-                selectedCode={selectedCode}
-                selectedYear={selectedYear}
-                selectedMonth={selectedMonth}
-                onCodeChange={setUserSelectedCode}
-                onYearChange={setSelectedYear}
-                onMonthChange={setSelectedMonth}
-            />
+            {currenciesQuery.data && (
+                <RatesFilters
+                    currencies={currenciesQuery.data}
+                    selectedCode={selectedCode}
+                    selectedYear={selectedYear}
+                    selectedMonth={selectedMonth}
+                    onCodeChange={setUserSelectedCode}
+                    onYearChange={setSelectedYear}
+                    onMonthChange={setSelectedMonth}
+                />
+            )}
 
-            <RatesTable
-                data={ratesQuery.data}
-                isLoading={ratesQuery.isLoading}
-                isError={ratesQuery.isError}
-            />
+            {isInitialLoading && nothingLoadedYet ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+                    <CircularProgress size={48} />
+                </Box>
+            ) : (
+                <>
+                    {ratesQuery.data && <RatesTable data={ratesQuery.data} />}
+                    {ratesQuery.isError && (
+                        <Alert
+                            severity="error"
+                            sx={{ mb: 2 }}
+                            action={
+                                <Button
+                                    color="inherit"
+                                    size="small"
+                                    onClick={() => ratesQuery.refetch()}
+                                >
+                                    Повторить
+                                </Button>
+                            }
+                        >
+                            Не удалось загрузить курсы валют
+                        </Alert>
+                    )}
+                    {!ratesQuery.data && !ratesQuery.isError && ratesQuery.isLoading && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                            <CircularProgress size={32} />
+                        </Box>
+                    )}
 
-            <AggregatesCard
-                data={aggregatesQuery.data}
-                isLoading={aggregatesQuery.isLoading}
-                isError={aggregatesQuery.isError}
-            />
+                    {aggregatesQuery.data && <AggregatesCard data={aggregatesQuery.data} />}
+                    {aggregatesQuery.isError && (
+                        <Alert
+                            severity="error"
+                            sx={{ mb: 2 }}
+                            action={
+                                <Button
+                                    color="inherit"
+                                    size="small"
+                                    onClick={() => aggregatesQuery.refetch()}
+                                >
+                                    Повторить
+                                </Button>
+                            }
+                        >
+                            Не удалось загрузить агрегаты
+                        </Alert>
+                    )}
+                    {!aggregatesQuery.data && !aggregatesQuery.isError && aggregatesQuery.isLoading && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                            <CircularProgress size={32} />
+                        </Box>
+                    )}
+                </>
+            )}
 
-            <ConverterCard currencies={currenciesQuery.data ?? []} />
+            {currenciesQuery.data && (
+                <ConverterCard currencies={currenciesQuery.data} />
+            )}
         </Container>
     );
 }

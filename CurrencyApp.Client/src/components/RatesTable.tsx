@@ -1,21 +1,17 @@
 import {
     Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Paper, CircularProgress,
-    Alert,
+    TableHead, TableRow, Paper, CircularProgress, Alert,
 } from '@mui/material';
 import type { RatesResponse } from '../types/currency';
 import RateChangeCell from './RateChangeCell';
 
 interface Props {
     data: RatesResponse | undefined;
-    isLoading: boolean;
-    isError: boolean;
 }
 
-export default function RatesTable({ data, isLoading, isError }: Props) {
-    if (isLoading) return <CircularProgress />;
-    if (isError) return <Alert severity="error">Ошибка загрузки</Alert>;
-    if (!data?.rates.length) return <Alert severity="info">Нет данных</Alert>;
+export default function RatesTable({ data }: Props) {
+    if (!data) return <CircularProgress />;
+    if (!data.rates.length) return <Alert severity="info">Нет данных</Alert>;
 
     return (
         <TableContainer component={Paper}>
@@ -32,9 +28,7 @@ export default function RatesTable({ data, isLoading, isError }: Props) {
                         <TableRow key={r.date}>
                             <TableCell>{new Date(r.date).toLocaleDateString('ru-RU')}</TableCell>
                             <TableCell align="right">{r.rate.toFixed(4)}</TableCell>
-                            <TableCell align="right">
-                                <RateChangeCell change={r.change} />
-                            </TableCell>
+                            <TableCell align="right"><RateChangeCell change={r.change} /></TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
