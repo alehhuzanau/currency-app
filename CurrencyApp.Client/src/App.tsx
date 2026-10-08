@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
     Container,
     Typography,
@@ -7,11 +6,12 @@ import {
     Box,
     CircularProgress,
     Button,
+    Grid,
 } from '@mui/material';
-import { getCurrencies, getRates, getAggregates } from './api/currencyApi';
+import { useCurrencies } from './hooks/useCurrencies';
 import RatesFilters from './components/RatesFilters';
-import RatesTable from './components/RatesTable';
-import AggregatesCard from './components/AggregatesCard';
+import RatesSection from './components/sections/RatesSection';
+import AggregatesSection from './components/sections/AggregatesSection';
 import ConverterCard from './components/ConverterCard';
 
 export default function App() {
@@ -20,27 +20,11 @@ export default function App() {
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
 
-    const currenciesQuery = useQuery({
-        queryKey: ['currencies'],
-        queryFn: getCurrencies,
-    });
-
+    const currenciesQuery = useCurrencies();
     const selectedCode = userSelectedCode
         ?? currenciesQuery.data?.find(c => c.code === 'USD')?.code
         ?? currenciesQuery.data?.[0]?.code
         ?? '';
-
-    const ratesQuery = useQuery({
-        queryKey: ['rates', selectedCode, selectedYear, selectedMonth],
-        queryFn: () => getRates(selectedCode, selectedYear, selectedMonth),
-        enabled: !!selectedCode,
-    });
-
-    const aggregatesQuery = useQuery({
-        queryKey: ['aggregates', selectedCode, selectedYear, selectedMonth],
-        queryFn: () => getAggregates(selectedCode, selectedYear, selectedMonth),
-        enabled: !!selectedCode,
-    });
 
     const criticalError = currenciesQuery.isError && !currenciesQuery.data;
 
@@ -68,15 +52,8 @@ export default function App() {
         );
     }
 
-    const isInitialLoading =
-        currenciesQuery.isLoading ||
-        (ratesQuery.isLoading && !ratesQuery.data) ||
-        (aggregatesQuery.isLoading && !aggregatesQuery.data);
-
-    const nothingLoadedYet = !ratesQuery.data && !aggregatesQuery.data;
-
     return (
-        <Container maxWidth="md" sx={{ mt: 3 }}>
+        <Container maxWidth="lg" sx={{ mt: 3 }}>
             <Typography variant="h5" gutterBottom>
                 Курсы валют НБРБ
             </Typography>
@@ -93,64 +70,31 @@ export default function App() {
                 />
             )}
 
-            {isInitialLoading && nothingLoadedYet ? (
+            {currenciesQuery.isLoading && (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
                     <CircularProgress size={48} />
                 </Box>
-            ) : (
-                <>
-                    {ratesQuery.data && <RatesTable data={ratesQuery.data} />}
-                    {ratesQuery.isError && (
-                        <Alert
-                            severity="error"
-                            sx={{ mb: 2 }}
-                            action={
-                                <Button
-                                    color="inherit"
-                                    size="small"
-                                    onClick={() => ratesQuery.refetch()}
-                                >
-                                    Повторить
-                                </Button>
-                            }
-                        >
-                            Не удалось загрузить курсы валют
-                        </Alert>
-                    )}
-                    {!ratesQuery.data && !ratesQuery.isError && ratesQuery.isLoading && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                            <CircularProgress size={32} />
-                        </Box>
-                    )}
-
-                    {aggregatesQuery.data && <AggregatesCard data={aggregatesQuery.data} />}
-                    {aggregatesQuery.isError && (
-                        <Alert
-                            severity="error"
-                            sx={{ mb: 2 }}
-                            action={
-                                <Button
-                                    color="inherit"
-                                    size="small"
-                                    onClick={() => aggregatesQuery.refetch()}
-                                >
-                                    Повторить
-                                </Button>
-                            }
-                        >
-                            Не удалось загрузить агрегаты
-                        </Alert>
-                    )}
-                    {!aggregatesQuery.data && !aggregatesQuery.isError && aggregatesQuery.isLoading && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                            <CircularProgress size={32} />
-                        </Box>
-                    )}
-                </>
             )}
 
             {currenciesQuery.data && (
-                <ConverterCard currencies={currenciesQuery.data} />
+                <Grid container spacing={3}>
+                    <Grid size={{ xs: 12, md: 8 }}>
+                        <RatesSection
+                            code={selectedCode}
+                            year={selectedYear}
+                            month={selectedMonth}
+                        />
+                        <AggregatesSection
+                            code={selectedCode}
+                            year={selectedYear}
+                            month={selectedMonth}
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 4 }}>
+                        <ConverterCard currencies={currenciesQuery.data} />
+                    </Grid>
+                </Grid>
             )}
         </Container>
     );
