@@ -83,9 +83,6 @@ export default function ConverterCard({ currencies }: Props) {
     return (
         <Card sx={{ maxWidth: 400, mx: 'auto' }}>
             <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    Калькулятор валют
-                </Typography>
 
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Box

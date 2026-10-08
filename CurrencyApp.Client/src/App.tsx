@@ -92,6 +92,9 @@ export default function App() {
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Калькулятор валют
+                        </Typography>
                         <ConverterCard currencies={currenciesQuery.data} />
                     </Grid>
                 </Grid>
