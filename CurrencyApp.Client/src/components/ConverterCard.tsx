@@ -1,10 +1,19 @@
 import { useState, useEffect } from 'react';
 import {
-    Card, CardContent, Typography, TextField,
-    FormControl, InputLabel, Select, MenuItem,
-    Box, IconButton, Alert, CircularProgress,
+    Card,
+    CardContent,
+    Typography,
+    TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Box,
+    IconButton,
+    Alert,
+    CircularProgress,
 } from '@mui/material';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useQuery } from '@tanstack/react-query';
 import { convert } from '../api/currencyApi';
 import type { Currency } from '../types/currency';
@@ -36,15 +45,10 @@ export default function ConverterCard({ currencies }: Props) {
         const num = Number(value);
         setAmount(num);
 
-        if (!value) {
-            setAmountError('Введите сумму');
-        } else if (isNaN(num)) {
-            setAmountError('Некорректное число');
-        } else if (num <= 0) {
-            setAmountError('Сумма должна быть положительной');
-        } else {
-            setAmountError(null);
-        }
+        if (!value) setAmountError('Введите сумму');
+        else if (isNaN(num)) setAmountError('Некорректное число');
+        else if (num <= 0) setAmountError('Сумма должна быть положительной');
+        else setAmountError(null);
     };
 
     const [debouncedAmount, setDebouncedAmount] = useState(amount);
@@ -64,64 +68,127 @@ export default function ConverterCard({ currencies }: Props) {
         setTo(from);
     };
 
+    const parseMessage = (message: string) => {
+        const [prefix, rest] = message.split(': ');
+        if (!rest) return { prefix: message, rates: [] };
+
+        const rates = rest
+            .split(';')
+            .map(s => s.trim().replace(/\.$/, ''))
+            .filter(Boolean);
+
+        return { prefix: prefix + ':', rates };
+    };
+
     return (
-        <Card sx={{ mt: 2 }}>
+        <Card sx={{ maxWidth: 400, mx: 'auto' }}>
             <CardContent>
-                <Typography variant="h6" gutterBottom>Калькулятор валют</Typography>
+                <Typography variant="h6" gutterBottom>
+                    Калькулятор валют
+                </Typography>
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
-                        <InputLabel>Из</InputLabel>
-                        <Select value={from} label="Из" onChange={e => setFrom(e.target.value)}>
-                            {allCurrencies.map(c => (
-                                <MenuItem key={c.code} value={c.code}>
-                                    {c.name} ({c.code})
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box
+                        sx={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2,
+                        }}
+                    >
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>Из</InputLabel>
+                            <Select
+                                value={from}
+                                label="Из"
+                                onChange={e => setFrom(e.target.value)}
+                                sx={{
+                                    '& .MuiSelect-select': {
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    },
+                                }}
+                            >
+                                {allCurrencies.map(c => (
+                                    <MenuItem key={c.code} value={c.code}>
+                                        {c.name} ({c.code})
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
 
-                    <IconButton onClick={handleSwap} sx={{ mt: 0.5 }}>
-                        <SwapHorizIcon />
+                        <FormControl size="small" fullWidth>
+                            <InputLabel>В</InputLabel>
+                            <Select
+                                value={to}
+                                label="В"
+                                onChange={e => setTo(e.target.value)}
+                                sx={{
+                                    '& .MuiSelect-select': {
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    },
+                                }}
+                            >
+                                {allCurrencies.map(c => (
+                                    <MenuItem key={c.code} value={c.code}>
+                                        {c.name} ({c.code})
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Box>
+
+                    <IconButton onClick={handleSwap} color="primary">
+                        <SwapVertIcon />
                     </IconButton>
+                </Box>
 
-                    <FormControl size="small" sx={{ minWidth: 200 }}>
-                        <InputLabel>В</InputLabel>
-                        <Select value={to} label="В" onChange={e => setTo(e.target.value)}>
-                            {allCurrencies.map(c => (
-                                <MenuItem key={c.code} value={c.code}>
-                                    {c.name} ({c.code})
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    <TextField
-                        label="Сумма"
-                        type="number"
-                        size="small"
-                        value={amount}
-                        onChange={e => handleAmountChange(e.target.value)}
-                        slotProps={{ htmlInput: { min: 0, step: 1 } }}
-                        error={!!amountError}
-                        helperText={amountError}
-                        sx={{ width: 180 }}
-                    />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <TextField
+                            label="Сумма"
+                            type="number"
+                            size="small"
+                            fullWidth
+                            value={amount}
+                            onChange={e => handleAmountChange(e.target.value)}
+                            slotProps={{ htmlInput: { min: 0, step: 0.1 } }}
+                            error={!!amountError}
+                            helperText={amountError}
+                        />
+                    </Box>
+                    <Box sx={{ width: 40 }} /> 
                 </Box>
 
                 <Box sx={{ mt: 2 }}>
                     {isLoading && <CircularProgress size={20} />}
                     {isError && <Alert severity="error">Ошибка конвертации</Alert>}
-                    {data && !amountError && (
-                        <>
-                            <Typography variant="h6">
-                                {data.amount} {data.from} = <strong>{data.result} {data.to}</strong>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                {data.message}
-                            </Typography>
-                        </>
-                    )}
+                    {data && !amountError && (() => {
+                        const { prefix, rates } = parseMessage(data.message);
+                        return (
+                            <>
+                                <Typography variant="h6">
+                                    {data.amount} {data.from} ={' '}
+                                    <strong>{data.result} {data.to}</strong>
+                                </Typography>
+                                <Box sx={{ mt: 1 }}>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {prefix}
+                                        {rates.map((rate, i) => (
+                                            <span key={i}>
+                                                <br />
+                                                {rate}
+                                            </span>
+                                        ))}
+                                    </Typography>
+                                </Box>
+                            </>
+                        );
+                    })()}
                 </Box>
             </CardContent>
         </Card>
