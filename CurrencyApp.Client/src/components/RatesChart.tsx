@@ -55,8 +55,11 @@ export default function RatesChart({ rates }: Props) {
                             width={70}
                         />
                         <Tooltip
-                            formatter={(value: number) => [value.toFixed(4), 'Курс (BYN)']}
-                            labelFormatter={label => `Дата: ${label}`}
+                            formatter={(value) => [
+                                typeof value === 'number' ? value.toFixed(4) : String(value),
+                                'Курс (BYN)',
+                            ]}
+                            labelFormatter={(label) => `Дата: ${label}`}
                         />
                         <Line
                             type="monotone"

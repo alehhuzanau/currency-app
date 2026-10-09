@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Container,
     Typography,
@@ -32,13 +32,6 @@ export default function App() {
     const ratesQuery = useRates(selectedCode, selectedYear, selectedMonth);
     const aggregatesQuery = useAggregates(selectedCode, selectedYear, selectedMonth);
 
-    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-    useEffect(() => {
-        if (ratesQuery.data && aggregatesQuery.data) {
-            setHasLoadedOnce(true);
-        }
-    }, [ratesQuery.data, aggregatesQuery.data]);
-
     const criticalError = currenciesQuery.isError && !currenciesQuery.data;
     if (criticalError) {
         return (
@@ -63,10 +56,6 @@ export default function App() {
             </Container>
         );
     }
-
-    const firstLoad =
-        !hasLoadedOnce &&
-        (ratesQuery.isPending || aggregatesQuery.isPending);
 
     return (
         <Container maxWidth="lg" sx={{ mt: 3 }}>
