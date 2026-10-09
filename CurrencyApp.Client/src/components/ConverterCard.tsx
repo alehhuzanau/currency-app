@@ -85,7 +85,7 @@ export default function ConverterCard({ currencies }: Props) {
     };
 
     return (
-        <Card sx={{ maxWidth: 400, mx: 'auto' }}>
+        <Card sx={{ maxWidth: 400 }}>
             <CardContent>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Box

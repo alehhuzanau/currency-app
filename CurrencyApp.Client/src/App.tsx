@@ -93,24 +93,18 @@ export default function App() {
 
             {currenciesQuery.data && (
                 <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 8 }} sx={{ pb: 4 }}>
-                        {firstLoad ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
-                                <CircularProgress size={48} />
-                            </Box>
-                        ) : (
-                            <>
-                                <RatesSection query={ratesQuery} />
-                                <AggregatesSection query={aggregatesQuery} />
-                            </>
-                        )}
+                    <Grid size={{ xs: 12, md: 8 }} sx={{ pb: { xs: 0, md: 4 } }}>
+                        <RatesSection query={ratesQuery} />
+                        <AggregatesSection query={aggregatesQuery} />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 4 }}>
-                        <Typography variant="h6" gutterBottom>
-                            Калькулятор валют
-                        </Typography>
-                        <ConverterCard currencies={currenciesQuery.data} />
+                    <Grid size={{ xs: 12, md: 4 }} sx={{ pb: { xs: 4, md: 0 } }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Typography variant="h6">
+                                Калькулятор валют
+                            </Typography>
+                            <ConverterCard currencies={currenciesQuery.data} />
+                        </Box>
                     </Grid>
                 </Grid>
             )}
