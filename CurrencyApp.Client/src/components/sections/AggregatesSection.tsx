@@ -1,31 +1,24 @@
-import { Alert, Box, CircularProgress, Button } from '@mui/material';
-import { useAggregates } from '../../hooks/useAggregates';
+import { Alert, Button, Box, Card, CardContent } from '@mui/material';
+import type { UseQueryResult } from '@tanstack/react-query';
+import type { Aggregates } from '../../types/currency';
 import AggregatesCard from '../AggregatesCard';
+import ShimmerOverlay from '../ShimmerOverlay';
+import { useDelayedFlag } from '../../hooks/useDelayedFlag';
 
 interface Props {
-    code: string;
-    year: number;
-    month: number;
+    query: UseQueryResult<Aggregates, Error>;
 }
 
-export default function AggregatesSection({ code, year, month }: Props) {
-    const query = useAggregates(code, year, month);
-
-    if (query.data) {
-        return <AggregatesCard data={query.data} />;
-    }
+export default function AggregatesSection({ query }: Props) {
+    const showShimmer = useDelayedFlag(query.isFetching && !!query.data);
 
     if (query.isError) {
         return (
             <Alert
                 severity="error"
-                sx={{ mb: 2 }}
+                sx={{ mt: 2, mb: 2 }}
                 action={
-                    <Button
-                        color="inherit"
-                        size="small"
-                        onClick={() => query.refetch()}
-                    >
+                    <Button color="inherit" size="small" onClick={() => query.refetch()}>
                         Повторить
                     </Button>
                 }
@@ -35,13 +28,21 @@ export default function AggregatesSection({ code, year, month }: Props) {
         );
     }
 
-    if (query.isLoading) {
+    if (!query.data) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <CircularProgress size={32} />
-            </Box>
+            <Card sx={{ mt: 2 }}>
+                <CardContent>
+                    <Box sx={{ height: 40, bgcolor: 'action.hover', borderRadius: 1 }} />
+                    <Box sx={{ height: 40, bgcolor: 'action.hover', borderRadius: 1, mt: 1 }} />
+                </CardContent>
+            </Card>
         );
     }
 
-    return null;
+    return (
+        <Box sx={{ position: 'relative', mt: 2 }}>
+            <AggregatesCard data={query.data} />
+            <ShimmerOverlay show={showShimmer} />
+        </Box>
+    );
 }

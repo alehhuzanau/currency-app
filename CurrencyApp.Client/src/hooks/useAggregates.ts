@@ -6,5 +6,6 @@ export function useAggregates(code: string, year: number, month: number) {
         queryKey: ['aggregates', code, year, month],
         queryFn: () => getAggregates(code, year, month),
         enabled: !!code,
+        placeholderData: (previousData) => previousData,
     });
 }

@@ -1,19 +1,16 @@
-import { Alert, Box, CircularProgress, Button } from '@mui/material';
-import { useRates } from '../../hooks/useRates';
+import { Alert, Button, Box } from '@mui/material';
+import type { UseQueryResult } from '@tanstack/react-query';
+import type { RatesResponse } from '../../types/currency';
 import RatesTable from '../RatesTable';
+import ShimmerOverlay from '../ShimmerOverlay';
+import { useDelayedFlag } from '../../hooks/useDelayedFlag';
 
 interface Props {
-    code: string;
-    year: number;
-    month: number;
+    query: UseQueryResult<RatesResponse, Error>;
 }
 
-export default function RatesSection({ code, year, month }: Props) {
-    const query = useRates(code, year, month);
-
-    if (query.data) {
-        return <RatesTable data={query.data} />;
-    }
+export default function RatesSection({ query }: Props) {
+    const showShimmer = useDelayedFlag(query.isFetching && !!query.data);
 
     if (query.isError) {
         return (
@@ -21,11 +18,7 @@ export default function RatesSection({ code, year, month }: Props) {
                 severity="error"
                 sx={{ mb: 2 }}
                 action={
-                    <Button
-                        color="inherit"
-                        size="small"
-                        onClick={() => query.refetch()}
-                    >
+                    <Button color="inherit" size="small" onClick={() => query.refetch()}>
                         Повторить
                     </Button>
                 }
@@ -35,13 +28,24 @@ export default function RatesSection({ code, year, month }: Props) {
         );
     }
 
-    if (query.isLoading) {
+    if (!query.data) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <CircularProgress size={32} />
+            <Box>
+                <Box sx={{ height: 40, bgcolor: 'action.hover', borderRadius: 1, mb: 0.5 }} />
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <Box
+                        key={i}
+                        sx={{ height: 32, bgcolor: 'action.hover', borderRadius: 1, mb: 0.5 }}
+                    />
+                ))}
             </Box>
         );
     }
 
-    return null;
+    return (
+        <Box sx={{ position: 'relative' }}>
+            <RatesTable data={query.data} />
+            <ShimmerOverlay show={showShimmer} />
+        </Box>
+    );
 }

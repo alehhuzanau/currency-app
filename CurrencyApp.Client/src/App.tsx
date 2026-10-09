@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Container,
     Typography,
@@ -9,6 +9,8 @@ import {
     Grid,
 } from '@mui/material';
 import { useCurrencies } from './hooks/useCurrencies';
+import { useRates } from './hooks/useRates';
+import { useAggregates } from './hooks/useAggregates';
 import RatesFilters from './components/RatesFilters';
 import RatesSection from './components/sections/RatesSection';
 import AggregatesSection from './components/sections/AggregatesSection';
@@ -26,11 +28,20 @@ export default function App() {
         ?? currenciesQuery.data?.[0]?.code
         ?? '';
 
-    const criticalError = currenciesQuery.isError && !currenciesQuery.data;
+    const ratesQuery = useRates(selectedCode, selectedYear, selectedMonth);
+    const aggregatesQuery = useAggregates(selectedCode, selectedYear, selectedMonth);
 
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+    useEffect(() => {
+        if (ratesQuery.data && aggregatesQuery.data) {
+            setHasLoadedOnce(true);
+        }
+    }, [ratesQuery.data, aggregatesQuery.data]);
+
+    const criticalError = currenciesQuery.isError && !currenciesQuery.data;
     if (criticalError) {
         return (
-            <Container maxWidth="md" sx={{ mt: 3 }}>
+            <Container maxWidth="lg" sx={{ mt: 3 }}>
                 <Typography variant="h5" gutterBottom>
                     Курсы валют НБРБ
                 </Typography>
@@ -51,6 +62,10 @@ export default function App() {
             </Container>
         );
     }
+
+    const firstLoad =
+        !hasLoadedOnce &&
+        (ratesQuery.isPending || aggregatesQuery.isPending);
 
     return (
         <Container maxWidth="lg" sx={{ mt: 3 }}>
@@ -79,16 +94,16 @@ export default function App() {
             {currenciesQuery.data && (
                 <Grid container spacing={3}>
                     <Grid size={{ xs: 12, md: 8 }} sx={{ pb: 4 }}>
-                        <RatesSection
-                            code={selectedCode}
-                            year={selectedYear}
-                            month={selectedMonth}
-                        />
-                        <AggregatesSection
-                            code={selectedCode}
-                            year={selectedYear}
-                            month={selectedMonth}
-                        />
+                        {firstLoad ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
+                                <CircularProgress size={48} />
+                            </Box>
+                        ) : (
+                            <>
+                                <RatesSection query={ratesQuery} />
+                                <AggregatesSection query={aggregatesQuery} />
+                            </>
+                        )}
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }}>

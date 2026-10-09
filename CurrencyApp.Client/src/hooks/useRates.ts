@@ -6,5 +6,6 @@ export function useRates(code: string, year: number, month: number) {
         queryKey: ['rates', code, year, month],
         queryFn: () => getRates(code, year, month),
         enabled: !!code,
+        placeholderData: (previousData) => previousData,
     });
 }
