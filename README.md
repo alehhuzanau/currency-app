@@ -72,9 +72,9 @@ npm install
 npm run dev
 ```
 
-## 🔌 Источник данных
+## 🔌 Альтернативный источник данных
 
-В **CurrencyApp.Api/appsettings.json**:
+В **`CurrencyApp.Api/appsettings.json`** указывается источник данных:
 ```json
 {
   "DataSource": {
@@ -85,12 +85,33 @@ npm run dev
 
 Возможные значения:
 - **`Api`** — данные из API НБРБ (по умолчанию)
-- **`File`** — данные из CSV-файлов в `CurrencyApp.Api/Data/`
+- **`File`** — данные из CSV-файлов в `CurrencyApp.Api/Data/` (4 валюты за сентябрь-октябрь 2026)
 
-Значение можно **переопределить** при запуске (без правки файла):
+Локально:
 ```bash
 cd CurrencyApp.Api
 dotnet run -- --DataSource:Type=File
+```
+
+Использование через **Docker**:
+```powershell
+# PowerShell
+$env:DATA_SOURCE="File"; docker compose up
+```
+```cmd
+# cmd 
+set DATA_SOURCE=File
+docker compose up
+```
+
+Чтобы вернуться к Api по умолчанию:
+```powershell
+# PowerShell
+Remove-Item Env:\DATA_SOURCE
+```
+```cmd
+# cmd
+set DATA_SOURCE=
 ```
 
 ## 🗂️ Архитектура
@@ -165,7 +186,7 @@ CurrencyApp/
     }
   ],
   "calculatedAt": "2026-10-05T23:39:02.3842507Z",
-  "message": "Расчёт выполнен по курсу НБРБ: 1 USD = 3.0371 BYN (на 06.10.2026); 1 EUR = 3.4033 BYN (на 06.10.2026)."
+  "message": "Расчёт выполнен по курсу НБРБ на 06.10.2026: 1 USD = 3.0371 BYN; 1 EUR = 3.4033 BYN."
 }
 ```
 
