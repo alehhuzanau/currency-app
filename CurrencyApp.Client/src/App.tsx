@@ -15,6 +15,7 @@ import RatesFilters from './components/RatesFilters';
 import RatesSection from './components/sections/RatesSection';
 import AggregatesSection from './components/sections/AggregatesSection';
 import ConverterCard from './components/ConverterCard';
+import RatesChart from './components/RatesChart';
 
 export default function App() {
     const now = new Date();
@@ -99,11 +100,17 @@ export default function App() {
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 4 }} sx={{ pb: { xs: 4, md: 0 } }}>
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <Typography variant="h6">
-                                Калькулятор валют
-                            </Typography>
-                            <ConverterCard currencies={currenciesQuery.data} />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <Box>
+                                <Typography variant="h6">
+                                    Калькулятор валют
+                                </Typography>
+                                <ConverterCard currencies={currenciesQuery.data} />
+                            </Box>
+
+                            {ratesQuery.data && (
+                                <RatesChart rates={ratesQuery.data.rates} />
+                            )}
                         </Box>
                     </Grid>
                 </Grid>
