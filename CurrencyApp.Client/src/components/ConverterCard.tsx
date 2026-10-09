@@ -11,12 +11,13 @@ import {
     Box,
     IconButton,
     Alert,
-    CircularProgress,
 } from '@mui/material';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
 import { useQuery } from '@tanstack/react-query';
 import { convert } from '../api/currencyApi';
 import type { Currency } from '../types/currency';
+import ShimmerOverlay from './ShimmerOverlay';
+import { useDelayedFlag } from '../hooks/useDelayedFlag';
 
 const BYN: Currency = { id: 0, code: 'BYN', name: 'Белорусский рубль', scale: 1 };
 
@@ -57,11 +58,14 @@ export default function ConverterCard({ currencies }: Props) {
         return () => clearTimeout(timer);
     }, [amount]);
 
-    const { data, isLoading, isError } = useQuery({
+    const { data, isFetching, isError } = useQuery({
         queryKey: ['convert', from, to, debouncedAmount],
         queryFn: () => convert(from, to, debouncedAmount),
         enabled: !amountError && debouncedAmount > 0 && !!from && !!to,
+        placeholderData: (previousData) => previousData,
     });
+
+    const showShimmer = useDelayedFlag(isFetching && !!data);
 
     const handleSwap = () => {
         setFrom(to);
@@ -83,7 +87,6 @@ export default function ConverterCard({ currencies }: Props) {
     return (
         <Card sx={{ maxWidth: 400, mx: 'auto' }}>
             <CardContent>
-
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                     <Box
                         sx={{
@@ -158,12 +161,12 @@ export default function ConverterCard({ currencies }: Props) {
                             helperText={amountError}
                         />
                     </Box>
-                    <Box sx={{ width: 40 }} /> 
+                    <Box sx={{ width: 40 }} />
                 </Box>
 
-                <Box sx={{ mt: 2 }}>
-                    {isLoading && <CircularProgress size={20} />}
+                <Box sx={{ mt: 2, position: 'relative' }}>
                     {isError && <Alert severity="error">Ошибка конвертации</Alert>}
+
                     {data && !amountError && (() => {
                         const { prefix, rates } = parseMessage(data.message);
                         return (
@@ -186,6 +189,8 @@ export default function ConverterCard({ currencies }: Props) {
                             </>
                         );
                     })()}
+
+                    <ShimmerOverlay show={showShimmer} />
                 </Box>
             </CardContent>
         </Card>
